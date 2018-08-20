@@ -1,95 +1,97 @@
-// makes sure that user inputs filename as ARGV
-if (process.argv.length < 3) {
+// validates of user's input
+if ((process.argv.length < 3) || (process.argv.length > 3)) {
   const nodeFilenamePath = process.argv[1];
   const path = require('path');
   const nodeFilename = path.basename(nodeFilenamePath);
-  console.log('For proper usage type: node ' + nodeFilename + ' FILENAME');
+  console.log('Invalid input. Type: node ' + nodeFilename + ' FILENAME');
   process.exit(1);
 }
 
-// extracts userFilename from ARGV
-const userFilename = process.argv[2];
 
-// uses 'fs' node module to read data from file
-const fs = require('fs');
+const fs = require('fs'); // uses 'fs' node module to manipulate on files system
 
+const userFilename = process.argv[2]; // extracts userFilename from ARGV to use it in readFile method
+
+// reads data from file using async readFile method
 fs.readFile(userFilename, 'utf8', function(err, data) {
   if (err) {
     console.log(err.message);
   } else {
-  console.log('Processed file: ' + userFilename);
-  let teamRanking = rankingCalculator(data);
-  console.log(teamRanking);
+    console.log('Processed file: ' + userFilename);
+    const games = fileProcessor(data); 
+    console.log(games);
+    const ranking = gamePointsCalculator(games);
+    console.log(ranking);
   }
   
 });
 
-// function to calculate ranking in a soccer league
-function rankingCalculator(data) {
-  let ranking = {};
-  const games = data.split('\n');
-  games.forEach(function(game) {
-    
-    //team1 info
-    let team1 = (game.split(',')[0]).trim();
-    let team1Info = teamGameInfoExtractor(team1);
-    let team1Name = team1Info[0];
-    let team1Score = team1Info[1];
-    
-    //team2 info
-    let team2 = (game.split(',')[1]).trim();
-    let team2Info = teamGameInfoExtractor(team2);
-    let team2Name = team2Info[0];
-    let team2Score = team2Info[1];
-    
-    //calculate each game ranking
-    let singleGameRanking = gameScoreCalculator(team1Name, team1Score, team2Name, team2Score);
-    
-    // change ranking collection after each game
-    let teams = Object.keys(ranking);
-    if ((!teams.includes(team1Name)) && (!teams.includes(team2Name))) {
-      Object.assign(ranking, singleGameRanking);
-    } else if ((teams.includes(team1Name)) && (teams.includes(team2Name))) {
-      let temp1 = ranking[team1Name];
-      ranking[team1Name] = temp1 + singleGameRanking[team1Name];
-      let temp2 = ranking[team2Name];
-      ranking[team2Name] = temp2 + singleGameRanking[team2Name];
-    } else if (teams.includes(team1Name)) {
-      let temp1 = ranking[team1Name];
-      ranking[team1Name] = temp1 + singleGameRanking[team1Name];
-    } else {
-      let temp2 = ranking[team2Name];
-      ranking[team2Name] = temp2 + singleGameRanking[team2Name];
-    }
-  })
-  return ranking;
-}
-
-// function to extract data (teams names and scores) about each team from a game
-function teamGameInfoExtractor(team) {
-  let teamArray = team.split(' ');
-  let teamScore = teamArray[teamArray.length - 1]; // score
-  teamArray.splice(-1);
-  let teamName = teamArray.join(' '); // name
-  let teamInfo = [];
-  teamInfo.push(teamName);
-  teamInfo.push(teamScore);
-  return teamInfo;
-}
-
-// function to calculate scores for each game, return value is an object with teamName as key and teamScore as value
-function gameScoreCalculator(team1Name, team1Score, team2Name, team2Score) {
-  let gameRanking = {};
-  if(team1Score === team2Score) {
-    gameRanking[team1Name] = 1;
-    gameRanking[team2Name] = 1;
-  } else if (team1Score > team2Score) {
-    gameRanking[team1Name] = 3;
-    gameRanking[team2Name] = 0;
-  } else {
-    gameRanking[team2Name] = 3;
-    gameRanking[team1Name] = 0;
+// class for team points results
+class TeamResult {
+  constructor(name, points) {
+    this.teamName = name;
+    this.teamPoints = points;
   }
+}
+
+class GameResult {
+  constructor(team1, team2) {
+    this.team1 = team1;
+    this.team2 = team2;
+  }
+}
+
+function teamStringParse(team) {
+  team = team.trim();
+  let teamArray = team.split(' ');
+  let teamScore = parseInt(teamArray.pop()); // scores (number)
+  let teamName = teamArray.join(' '); // name
+  return new TeamResult(teamName, teamScore);
+}
+
+// function to extract data from file and transform it into array of objects (GameResult class instances)
+function fileProcessor(data) {
+  const games = [];
+  const fileLines = data.split('\n');
+  fileLines.forEach(function(line) { 
+    let [team1, team2] = line.split(',');
+    let game = new GameResult(teamStringParse(team1),teamStringParse(team2));
+    games.push(game);
+  });
+  return games;  
+}
+
+// function to calculate points for each game, return value is map
+function gamePointsCalculator(games) {
+  const gameRanking = {};
+  games.forEach(function(game) {
+    let {team1, team2} = game;
+    if (team1.teamPoints === team2.teamPoints) { // change scores into points
+      team1.teamPoints = 1;
+      team2.teamPoints = 1;
+    } else if (team1.teamPoints > team2.teamPoints) {
+      team1.teamPoints = 3;
+      team2.teamPoints = 0;
+    } else {
+      team1.teamPoints = 0;
+      team2.teamPoints = 3;
+    }
+    
+    if (gameRanking[team1.teamName] === undefined) {
+      gameRanking[team1.teamName] = team1;
+    } else { // cumulate points from games
+      let temp1 = team1.teamPoints;
+      (gameRanking[team1.teamName]).teamPoints += temp1;
+    }
+    
+    if (gameRanking[team2.teamName] === undefined) {
+      gameRanking[team2.teamName] = team2;
+    } else { // cumulate points from games
+      let temp2 = team2.teamPoints;
+      (gameRanking[team2.teamName]).teamPoints += temp2;
+    }
+    
+  })
   return gameRanking;
 }
 
