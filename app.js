@@ -19,9 +19,9 @@ fs.readFile(userFilename, 'utf8', function(err, data) {
   } else {
     console.log('Processed file: ' + userFilename);
     const games = fileProcessor(data); 
-    console.log(games);
     const ranking = gamePointsCalculator(games);
-    console.log(ranking);
+    const groups = groupsConstructor(ranking);
+    groupsSortPrint(groups);
   }
   
 });
@@ -95,7 +95,38 @@ function gamePointsCalculator(games) {
   return gameRanking;
 }
 
-// function to sort by rating and alphabeticaly and print it 
-function sortTeams(teamRanking) {
-  
+function groupsConstructor(teamRanking) {
+  const ranking = Object.values(teamRanking);
+  let teamsOrder = {};
+  ranking.forEach(function(team) {
+    if (teamsOrder[team.teamPoints] === undefined) {
+      teamsOrder[team.teamPoints] = [team.teamName];
+    } else {
+      let temp = teamsOrder[team.teamPoints]; // temp variable to have some reference to the array
+      let newArray = temp.concat(team.teamName)
+      teamsOrder[team.teamPoints] = newArray;
+    }  
+  });
+  return teamsOrder;
+}
+
+function groupsSortPrint(groups) {
+  let sortedPointsArray = (Object.keys(groups)).sort().reverse();
+  let position = 1;
+  sortedPointsArray.forEach(function(point) {
+    let group = (groups[point]).sort();
+    group.forEach(function(team) {
+      console.log(position + '. ' + team + ', ' + pointsToString(point));
+    });
+    position = position + group.length;
+  })
+}
+
+function pointsToString(point) {
+  if (point == 1) {
+    point = '1 pt';
+  } else {
+    point = point + ' pts';
+  }
+  return point;
 }
